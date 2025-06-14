@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_sc
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, StackingRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from google.colab import files
 import io
 
@@ -36,6 +36,12 @@ df = df.drop(columns=['Unnamed: 0'], errors='ignore')
 # Handle missing values by filling with mean for numerical columns
 numeric_columns = df.select_dtypes(include=['number']).columns
 df[numeric_columns] = df[numeric_columns].fillna(df[numeric_columns].mean())
+
+# Convert categorical data (if any, e.g., country names) into numeric values
+# Check if there are categorical columns
+for column in df.select_dtypes(include=['object']).columns:
+    label_encoder = LabelEncoder()
+    df[column] = label_encoder.fit_transform(df[column])
 
 # Feature Engineering
 # Interaction term between 'pesticides_tonnes' and 'avg_temp' for example
@@ -103,7 +109,7 @@ def evaluate_model(model, X_test, y_test):
     mse = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
     r2 = r2_score(y_test, y_pred)
-    
+
     print(f"{model.__class__.__name__} Performance:")
     print(f"MAE: {mae}")
     print(f"MSE: {mse}")
@@ -130,4 +136,34 @@ sns.residplot(x=stacking_model.predict(X_test), y=y_test - stacking_model.predic
 plt.xlabel('Predicted Crop Yield')
 plt.ylabel('Residuals')
 plt.title('Residuals Plot (Stacked Model)')
+plt.show()
+
+# **Line Plot - Crop Yield Trends Over Time**
+# Group by Year and calculate the mean crop yield per year
+crop_yield_trends = df.groupby('Year')['hg/ha_yield'].mean()
+
+# Plotting the crop yield trend over the years
+plt.figure(figsize=(10, 6))
+plt.plot(crop_yield_trends.index, crop_yield_trends.values, marker='o', linestyle='-', color='b')
+plt.title('Crop Yield Trends Over Time')
+plt.xlabel('Year')
+plt.ylabel('Average Crop Yield (hg/ha)')
+plt.grid(True)
+plt.show()
+
+# **Top 6 Features Correlated with Crop Yield**
+# Calculate the correlation with the target variable (crop yield)
+corr_matrix = df.corr()
+crop_yield_corr = corr_matrix['hg/ha_yield'].drop('hg/ha_yield')
+
+# Sort by absolute correlation and select top 6
+sorted_corr = crop_yield_corr.abs().sort_values(ascending=False)
+top_features = sorted_corr.head(6)
+
+# Plotting the top 6 features correlated with crop yield
+plt.figure(figsize=(10, 6))
+sns.barplot(x=top_features.values, y=top_features.index, palette="Blues_d")
+plt.title("Top 6 Features Correlated with Crop Yield")
+plt.xlabel("Correlation with Crop Yield")
+plt.ylabel("Features")
 plt.show()
